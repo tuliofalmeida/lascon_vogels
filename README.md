@@ -45,6 +45,24 @@ By the end of the project, we expect:
 - Scripts that generate publication-style plots from saved simulation outputs
 - A documented pipeline and parameters aligned with the original study
 
+## Tasks:
+
+Details in issues 
+
+Phase 1: Model Definition and Plasticity Implementation
+1. Define the Postsynaptic Neuron Model
+2. Implement the Inhibitory STDP Rule
+
+Phase 2: Single Neuron Simulation (Figures 1 & 2)
+3. Construct the Input Architecture
+4. Run the Balancing Experiment (Fig. 1)
+5. Analyze Sensory Tuning and Sparseness (Fig. 2)
+
+Phase 3: Recurrent Network and Memory (Figure 4)
+6. Build the Recurrent Network
+7. Establish the Asynchronous Irregular (AI) State
+8. Embed and Retrieve Cell Assemblies
+
 ## Repository structure
 
 Suggested structure for our repository
