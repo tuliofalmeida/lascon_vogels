@@ -72,4 +72,5 @@ Suggested structure for our repository
 │ ├─ raw/ # simulation outputs 
 │ └─ figures/ # generated figures
 └─ tests/
-└─ test_smoke.py # Down-scaled parameters to run fast```
+└─ test_smoke.py # Down-scaled parameters to run fast
+```
