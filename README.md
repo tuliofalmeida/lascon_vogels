@@ -21,7 +21,7 @@ The main idea is to repdouce the paper of Tim Vogels from 2011 - Inhibitory Plas
 - Our project in [OverLeaf](https://www.overleaf.com/project/696436afd542f478c53c523d) - **Need to be updated**
 - NEST [Documentation](https://nest-simulator.readthedocs.io/en/stable/index.html)
 
-## What we replicate (scope)
+## What we replicate
 
 Everything structural in the paper is standard NEST:
 
@@ -34,7 +34,7 @@ Everything structural in the paper is standard NEST:
 - Spike recording / population rates / balance metrics
 
 Core learning mechanism:
-- [Vogels inhibitory plasticity rule](https://nest-simulator.readthedocs.io/en/stable/models/vogels_sprekeler_synapse.html) already exists in NEST (let's wrap it into a reproducible example and figure pipeline)
+- [Vogels inhibitory plasticity rule](https://nest-simulator.readthedocs.io/en/stable/models/vogels_sprekeler_synapse.html) already exists in NEST, let's wrap it into a reproducible example and figure pipeline
 
 ## Expected outcomes
 
