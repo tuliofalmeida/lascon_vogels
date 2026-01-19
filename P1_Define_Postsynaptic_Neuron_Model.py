@@ -3,20 +3,20 @@
    Set the reversal potentials to VE​=0 mV for excitation and VI​=−80 mV for inhibition.
    Set the synaptic time constants to τE​=5 ms for excitation and τI​=10 ms for inhibition
 '''
-
+#%%
 import matplotlib.pyplot as plt
 import nest
 import numpy as np
 
 nest.ResetKernel()
 
-# Parameters
+'''Instantiate a leaky integrate-and-fire (IAF) neuron.
+   Configure the synapses to be conductance-based.
+   Set the reversal potentials to VE​=0 mV for excitation and VI​=−80 mV for inhibition.
+   Set the synaptic time constants to τE​=5 ms for excitation and τI​=10 ms for inhibition
+'''
 
-n_groups = 8
-n_exc = 100
-n_inh = 25
-
-# Neuron parameters
+# Post Neuron parameters
 params_post_neuron = {
     'V_m'       : -60.0, # Membrane potential
    # 'E_L'       : ,  # Leak reversal potential
@@ -32,11 +32,22 @@ params_post_neuron = {
      'I_e'    : 0  # Constante input current
 }
 
+
+'''Use the Vogels plasticity already in NEST
+Extract the parameters from the paper and create a file/table with it'''
+
+
 # Neuron models
 post_model = 'iaf_cond_exp'
 pre_model = 'poisson_generator' 
 
-# Excitatory synapse parameters
+# Input group parameters
+
+n_groups = 8 # number of channels
+n_exc = 100
+n_inh = 25
+
+# Excitatory synapse parameters - 
 exc_weight = 1.0
 exc_delay = 1.5
 
@@ -49,10 +60,10 @@ vogel_params = {
     "weight": 0.1
 }
 
+#%%
 
 # Create postsynaptic neuron
 post_neuron = nest.Create(post_model, params_post_neuron)
-
 
 # Create input groups
 exc_groups = []
@@ -66,9 +77,12 @@ for g in range(n_groups):
     exc_groups.append(exc)
     inh_groups.append(inh)
 
+#%%
+# Connect excitatory input groups to postsynaptic neuron
+
 nest.CopyModel(
     "static_synapse",
-    "excitatory_static",
+    "syn_excitatory_static",
     {
         "weight": exc_weight,
         "delay": exc_delay
@@ -79,8 +93,10 @@ for exc in exc_groups:
     nest.Connect(
         exc,
         post_neuron,
-        syn_spec = 'excitatory_static'
+        syn_spec = 'syn_excitatory_static'
     )
+#%%
+# Connect excitatory input groups to postsynaptic neuron
 
 nest.CopyModel(
     "vogels_sprekeler_synapse",
@@ -105,8 +121,7 @@ print("Number of spikes:", nest.GetStatus(sd, "n_events")[0])
 
 
 
-'''Use the Vogels plasticity already in NEST
-Extract the parameters from the paper and create a file/table with it'''
+
 
 
 '''Create 1,000 input synapses directed at a single postsynaptic cell.
@@ -117,3 +132,5 @@ Composition per group: 100 excitatory synapses and 25 inhibitory synapses.
 Input Signals: Generate temporally modulated rate signals (time constant τ≈50 ms) to mimic ongoing sensory activity.
 Spike Generation: Convert these rate signals into independent Poisson spike trains (125 distinct trains per signal group)'''
 
+
+# %%
