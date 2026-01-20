@@ -7,6 +7,7 @@
 import matplotlib.pyplot as plt
 import nest
 import numpy as np
+import nest.voltage_trace
 
 nest.ResetKernel()
 
@@ -44,11 +45,11 @@ pre_model = 'poisson_generator'
 # Input group parameters
 
 n_groups = 8 # number of channels
-n_exc = 100
-n_inh = 25
+n_exc = 1
+n_inh = 1
 
 # Excitatory synapse parameters - 
-exc_weight = 1.0
+exc_weight = 0.8
 exc_delay = 1.5
 
 # Inhibitory plastic synapse parameters
@@ -57,13 +58,13 @@ vogel_params = {
     "tau": 20, # time constant of STDP window
     "eta": 10**(-4), # learning rate
     "alpha": 0.2, # constant depression
-    "Wmax": 0.0,  # upper bound (still negative!)
-    "weight": 0.1,
-    "delay": 1.0,
+    "Wmax": -0.1,  # upper bound (still negative!)
+    "weight": -0.3,
+    "delay": 1.5,
 }
 
 #%%
-
+voltmeter = nest.Create("voltmeter")
 # Create postsynaptic neuron
 post_neuron = nest.Create(post_model, params_post_neuron)
 
@@ -121,23 +122,48 @@ for ihn in inh_groups:
 
 #%%
 
-sd = nest.Create('spike_recorder')
-nest.Connect(post_neuron, sd)
+mm = nest.Create("multimeter", params = {
+    "record_from": ["V_m"],
+    "interval": 0.1
+})
+nest.Connect(mm, post_neuron)
 
-nest.Simulate(1000.0)
+spikes = nest.Create("spike_recorder")
+nest.Connect(post_neuron, spikes)
 
-print("Number of spikes:", nest.GetStatus(sd, "n_events")[0])
+voltmeter = nest.Create("voltmeter")
+nest.Connect(voltmeter, post_neuron)
+#%%
+# Simulate for 1000 ms
+
+
+
+nest.Simulate(10000.0)
+#%%
+events = mm.get("events")
+times = events["times"]
+V_m = events["V_m"]
+
+events_spikes = spikes.n_events
+rate = events_spikes / 10000.0
+
+#%%
+#print("Number of spikes:", nest.GetStatus(sd, "n_events")[0])
 
 plt.figure()
 plt.title("Postsynaptic neuron spikes")
 plt.xlabel("Time (ms)")
-plt.label("")
-events = nest.GetStatus(sd, 'events')[0]
-plt.plot(events['times'], events['senders'], '.')
+plt.ylabel("V_m (mV)")
+plt.plot(times, V_m)
 plt.show()
 
+nest.raster_plot.from_device(spikes, hist=True)
+plt.show()
 
+nest.voltage_trace.from_device(voltmeter)
+plt.show()
 
+# types of plot - membrane voltage, synaptic weights over time, firing rate of postsynaptic neuron
 
 
 '''Create 1,000 input synapses directed at a single postsynaptic cell.
@@ -147,6 +173,7 @@ Generate it with NEST seed method, if the code takes too long to run, save this 
 Composition per group: 100 excitatory synapses and 25 inhibitory synapses.
 Input Signals: Generate temporally modulated rate signals (time constant τ≈50 ms) to mimic ongoing sensory activity.
 Spike Generation: Convert these rate signals into independent Poisson spike trains (125 distinct trains per signal group)'''
+
 
 
 # %%
