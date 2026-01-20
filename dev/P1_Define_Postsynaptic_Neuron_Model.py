@@ -52,12 +52,14 @@ exc_weight = 1.0
 exc_delay = 1.5
 
 # Inhibitory plastic synapse parameters
+#inh_receptor = nest.GetDefaults("iaf_cond_exp")["receptor_types"]["GABA_A"]
 vogel_params = {
     "tau": 20, # time constant of STDP window
     "eta": 10**(-4), # learning rate
     "alpha": 0.2, # constant depression
     "Wmax": 0.0,  # upper bound (still negative!)
-    "weight": 0.1
+    "weight": 0.1,
+    "delay": 1.0,
 }
 
 #%%
@@ -90,13 +92,16 @@ nest.CopyModel(
 )
 
 for exc in exc_groups:
-    nest.Connect(
-        exc,
-        post_neuron,
-        syn_spec = 'syn_excitatory_static'
-    )
+    for i in range(len(exc)):
+        nest.Connect(
+            exc[i],
+            post_neuron,
+            syn_spec = 'syn_excitatory_static')
+        
 #%%
-# Connect excitatory input groups to postsynaptic neuron
+
+
+# Connect inhibitory input groups to postsynaptic neuron with Vogels plasticity
 
 nest.CopyModel(
     "vogels_sprekeler_synapse",
@@ -104,12 +109,17 @@ nest.CopyModel(
     vogel_params
 )
 
-for inh in inh_groups:
-    nest.Connect(
-        inh,
-        post_neuron,
-        syn_spec="inhibitory_plastic"
-    )
+
+# Connect poisson_generator to parrot neuron and then to postsynaptic neuron
+
+for ihn in inh_groups:
+    for i in range(len(ihn)):
+        parrot = nest.Create("parrot_neuron")
+        nest.Connect(ihn[i], parrot)
+        nest.Connect(parrot, post_neuron, syn_spec="inhibitory_plastic")
+
+
+#%%
 
 sd = nest.Create('spike_recorder')
 nest.Connect(post_neuron, sd)
@@ -118,7 +128,13 @@ nest.Simulate(1000.0)
 
 print("Number of spikes:", nest.GetStatus(sd, "n_events")[0])
 
-
+plt.figure()
+plt.title("Postsynaptic neuron spikes")
+plt.xlabel("Time (ms)")
+plt.label("")
+events = nest.GetStatus(sd, 'events')[0]
+plt.plot(events['times'], events['senders'], '.')
+plt.show()
 
 
 
