@@ -94,8 +94,8 @@ def get_currents_snapshot(post_node, exc_sources, inh_sources, rates_list, tau_e
     return I_ex_vals, I_in_vals
 
 
-def connections(post, n_groups, N_exc_per_group, N_inh_per_group,
-                 w_exc_by_group, inh_syn_params, delay, T_total, dt):
+def connections(post, w_exc_by_group, inh_syn_params, T_total, n_groups=8, N_exc_per_group=100, N_inh_per_group=25,
+                delay=1, dt=0.1):
     
     """Create connections from inhomogeneous Poisson generators to the postsynaptic neuron."""
 
@@ -146,7 +146,9 @@ def connections(post, n_groups, N_exc_per_group, N_inh_per_group,
                     syn_spec={
                         "synapse_model": "static_synapse",
                         "weight": w_exc_by_group[g], "delay": delay})
-        
+        spike_parrots = nest.Create("spike_recorder")
+        nest.Connect(exc_parrots[0], spike_parrots)
+
         # Inhibitory
         inh_parrots = nest.Create("parrot_neuron", N_inh_per_group)
         inh_parrots_list.append(inh_parrots)
@@ -154,23 +156,10 @@ def connections(post, n_groups, N_exc_per_group, N_inh_per_group,
         nest.Connect(inh_parrots, post, conn_spec="all_to_all",
                     syn_spec={**inh_syn_params})
         
-        spike_parrots = nest.Create("spike_recorder")
-        nest.Connect(exc_parrots[0], spike_parrots)
     
         spike_parrots_list.append(spike_parrots)
 
-    # Connect multimeter and Spike record to Post neuron
-
-    multimeter = nest.Create("multimeter", params={
-        "record_from": ["V_m", "g_ex", "g_in"],
-        "interval": 0.1  # High temporal resolution
-    })
-    nest.Connect(multimeter, post)
-
-    spikedetector = nest.Create("spike_recorder")   
-    nest.Connect(post, spikedetector)
-
-    return exc_parrots_list, inh_parrots_list, time, rates, spike_parrots_list, multimeter, spikedetector
+    return exc_parrots_list, inh_parrots_list, time, rates, spike_parrots_list
 
 
 def run_simulation_for_target(target_rate_hz, tau_stdp=20.0, N_inh_per_group=25, N_exc_per_group=100, n_groups=8, T_sim=15000.0):
@@ -183,7 +172,7 @@ def run_simulation_for_target(target_rate_hz, tau_stdp=20.0, N_inh_per_group=25,
     nest.SetKernelStatus({
         "resolution": resolution,
         "local_num_threads": 1,
-        "print_time": False 
+        "print_time": True 
     })
  
     
@@ -205,7 +194,7 @@ def run_simulation_for_target(target_rate_hz, tau_stdp=20.0, N_inh_per_group=25,
     # ==================== Construção da Rede ====================
 
     post=post_neuron("iaf_cond_alpha", tau_exc=5.0, tau_inh=10.0, n=1, neuron_params=neuron_params)
-    exc_parrots_list, inh_parrots_list, time, rates, spike_parrots_list, multimeter, spikedetector = connections(
+    exc_parrots_list, inh_parrots_list, time, rates, spike_parrots_list  = connections(
         post=post,
         n_groups=n_groups,
         N_exc_per_group=N_exc_per_group,
@@ -305,4 +294,89 @@ def calculate_input_output_correlation(r_t, signal_k, bin_size_ms, dt_signal):
     
     return correlation
 
+
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+
+def plot_input_raster_and_weights(signals, weights_list, dt_sim=0.1, bin_size_ms=5.0):
+    """
+    Plota o raster (heatmap) dos sinais de entrada e os pesos correspondentes.
+    
+    Args:
+        signals (np.array): Array 3D [n_canais, n_trials, n_steps]
+        weights_list (list/array): Lista de pesos excitatórios por canal.
+        dt_sim (float): Passo de tempo da simulação original (ex: 0.1 ms).
+        bin_size_ms (float): Tamanho do bin desejado para o plot (ex: 5.0 ms).
+    """
+    
+    # 1. Preparação dos Dados (Binagem)
+    # Selecionamos a Trial 0 (pois o sinal de entrada s_k(t) é o mesmo padrão repetido)
+    # Shape alvo: [n_canais, n_steps]
+    raw_signal = signals[:, 0, :] 
+    
+    n_channels, n_steps_total = raw_signal.shape
+    
+    # Calcular fator de redução (ex: 5ms / 0.1ms = 50 steps)
+    factor = int(bin_size_ms / dt_sim)
+    
+    # Arredondar o tamanho do array para ser divisível pelo fator
+    limit = (n_steps_total // factor) * factor
+    raw_signal_trimmed = raw_signal[:, :limit]
+    
+    # Reshape e média para fazer o downsampling (Binagem)
+    # Transforma [Canais, Tempo] -> [Canais, Novos_Bins, Fator] -> Média no eixo do Fator
+    signal_binned = raw_signal_trimmed.reshape(n_channels, -1, factor).mean(axis=2)
+    
+    # Eixo de tempo para o plot
+    n_bins = signal_binned.shape[1]
+    t_max = n_bins * bin_size_ms
+    
+    # 2. Configuração do Plot (GridSpec)
+    fig = plt.figure(figsize=(14, 6))
+    # width_ratios=[4, 1] faz o raster ser 4x mais largo que o gráfico de pesos
+    gs = gridspec.GridSpec(1, 2, width_ratios=[4, 1], wspace=0.05)
+    
+    # --- PAINEL ESQUERDO: Raster (Heatmap) ---
+    ax_raster = plt.subplot(gs[0])
+    
+    # imshow plota a matriz como cores
+    # aspect='auto' é vital para gráficos de tempo longo
+    # origin='upper' coloca o canal 0 no topo
+    im = ax_raster.imshow(signal_binned, 
+                          aspect='auto', 
+                          cmap='inferno', # 'inferno', 'hot', ou 'viridis' funcionam bem
+                          interpolation='nearest',
+                          extent=[0, t_max, n_channels - 0.5, -0.5]) # Ajuste fino para alinhar ticks
+    
+    ax_raster.set_xlabel("Time (ms)")
+    ax_raster.set_ylabel("Input Channel #")
+    ax_raster.set_title(f"Input Firing Rates (Bin = {bin_size_ms}ms)")
+    
+    # Ajustar Ticks do Y para mostrar número dos canais inteiros
+    ax_raster.set_yticks(np.arange(n_channels))
+    ax_raster.invert_yaxis() # Garante que Canal 0 fique no topo (opcional, padrão de matriz)
+    
+    # Barra de cores
+    cbar = plt.colorbar(im, ax=ax_raster, pad=0.02)
+    cbar.set_label("Rate (Hz)")
+    
+    # --- PAINEL DIREITO: Pesos Excitatórios ---
+    ax_weights = plt.subplot(gs[1], sharey=ax_raster)
+    
+    y_pos = np.arange(n_channels)
+    
+    # Plota barras horizontais
+    # A cor 'k' (preto) com alpha ajuda a visualizar
+    ax_weights.barh(y_pos, weights_list, color='black', alpha=0.7, height=0.6)
+    
+    ax_weights.set_xlabel("Excitatory Weight (nS)")
+    ax_weights.set_title("Weights Profile")
+    ax_weights.grid(True, axis='x', linestyle='--', alpha=0.5)
+    
+    # Esconde os labels Y do gráfico da direita (pois já estão na esquerda)
+    plt.setp(ax_weights.get_yticklabels(), visible=False)
+    
+    plt.tight_layout()
+    plt.show()
 

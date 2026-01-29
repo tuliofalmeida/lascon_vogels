@@ -5,7 +5,12 @@ import matplotlib.pyplot as plt
 import functions_nest as fn
 import matplotlib.gridspec as gridspec
 
+import os
+import matplotlib.pyplot as plt
 
+folder = 'fig'
+if not os.path.exists(folder):
+    os.makedirs(folder)
 #%%
 # Configuração Inicial
 nest.ResetKernel()
@@ -17,11 +22,11 @@ nest.SetKernelStatus({
 })
 np.random.seed(42)
 
-nest.total_num_virtual_procs=3
+#nest.total_num_virtual_procs=3
 
 # ==================== Parâmetros ====================
-T_avg = 2000.0  # ms
-T_total = 10000.0  # 20 segundos
+T_avg = 4000.0  # ms
+T_total = 60000.0  # 20 segundos
 dt = 0.1  # ms
 
 neuron_params = {
@@ -55,64 +60,27 @@ inh_syn_params = {
     "tau": tau_stdp,
     "Wmax": -100.0,
 }
-
+#%%
 # Pesos excitatórios fixos (Tuning Curve Inicial)
 preferred_group = 4 
 w_exc_by_group = fn.exc_weights(n_groups, preferred_group)
-
-exc_parrots_list, inh_parrots_list, time, rates, spike_parrots_list, multimeter, spikedetector = fn.connections(post, n_groups, N_exc_per_group, 
-                                    N_inh_per_group, w_exc_by_group, inh_syn_params, delay, T_total, dt)
-    
-
-
-# ==================== Simulação em Etapas ====================
-snapshots = []
-titles = ["Before Plasticity", "During Plasticity", "After Plasticity (Detailed Balance)"]
-
-# Snapshot 1: Antes de começar (T=0)
-print("Capturing Snapshot 1 (Before)...")
-snapshots.append(fn.get_currents_snapshot(post, exc_parrots_list, inh_parrots_list, rates, tau_exc, tau_inh ))
-
-# Simular metade do tempo
-print("Simulating first half...")
-nest.Simulate(T_total/2)
 #%%
-# Snapshot 2: Durante (T=10s)
-print("Capturing Snapshot 2 (During)...")
-snapshots.append(fn.get_currents_snapshot(post, exc_parrots_list, inh_parrots_list, rates, tau_exc, tau_inh))
 
-# Simular restante
-print("Simulating second half...")
+exc_parrots_list, inh_parrots_list, time, rates, spike_parrots_list = fn.connections(post=post,
+                                    w_exc_by_group=w_exc_by_group, inh_syn_params=inh_syn_params, T_total=T_total)
+# ==================== Configuração dos Medidores ====================
+multimeter = nest.Create("multimeter", params={
+       "record_from": ["V_m", "g_ex", "g_in"],
+      "interval": 0.1  # High temporal resolution
+    })
+nest.Connect(multimeter, post)
+
+spikedetector = nest.Create("spike_recorder")   
+nest.Connect(post, spikedetector)
+# ==================== Simulação ====================
+
 nest.Simulate(T_total)
 
-# Snapshot 3: Final (T=20s)
-print("Capturing Snapshot 3 (After)...")
-snapshots.append(fn.get_currents_snapshot(post, exc_parrots_list, inh_parrots_list, rates, tau_exc, tau_inh))
-
-# ==================== Plotagem (Figura 1E) ====================
-fig, axes = plt.subplots(3, 1, figsize=(6, 12), sharex=True, sharey=True)
-channel_idx = np.arange(1, n_groups + 1)
-
-for i, ax in enumerate(axes):
-    I_ex, I_in = snapshots[i]
-    
-    # Excitatory: Círculos pretos fechados
-    ax.plot(channel_idx, I_ex, 'ko-', label='Excitatory' if i==0 else "")
-    
-    # Inhibitory: Círculos brancos (abertos)
-    ax.plot(channel_idx, I_in, 'wo-', markeredgecolor='k', label='Inhibitory' if i==0 else "")
-    
-    ax.set_title(titles[i])
-    ax.set_ylabel("Mean Current (pA)")
-    
-    # Linha guia do canal preferido
-    ax.axvline(preferred_group + 1, color='gray', linestyle='--', alpha=0.3)
-
-axes[-1].set_xlabel("Signal Channel #")
-fig.legend(loc='upper right', bbox_to_anchor=(0.9, 0.95))
-
-plt.tight_layout()
-plt.show()
 
 #%%
 #==================== Ploting Data ====================
@@ -172,11 +140,14 @@ axs[-1].set_xlabel("Time (ms)")
 plt.tight_layout()
 plt.show()
 
+print("Plotting of Synaptic Currents completed.")
+
 #%%
 # ==================== Varredura de Taxas Alvo (Figura 1G) ====================
 
 target_rates = [5, 10, 20, 30, 40, 50] # Hz (rho_0)
 measured_rates = []
+T_sim = 15000.0  # ms
 
 print("Iniciando varredura de taxas alvo (Figura 1G)...")
 print(f"{'Alvo (Hz)':<10} | {'Medido (Hz)':<10}")
@@ -203,17 +174,21 @@ plt.grid(True, linestyle=':', alpha=0.6)
 plt.axis([0, 60, 0, 60])
 plt.tight_layout()
 plt.show()
+plt.savefig(os.path.join(folder, 'figure_1G_target_vs_output_rate.png'), dpi=300)
 
+
+print("Varredura de taxas alvo concluída.")
 #=================================================================================
 
 #%%
 
 output_all_trials = [] # Output spike times all trials
-n_trials = 2  # Number of trials
+n_trials = 1  # Number of trials
 all_input_signals = np.empty((n_groups, n_trials), dtype=object)
 correlation_results = []
 s_k = np.empty((n_groups, n_trials))  # Input signals PSTH
-
+T_sim = 5000.0  # ms
+#%%
 for n in range(n_trials):  # 3 trials
 
     print(f"Trial {n+1}/3")
@@ -226,50 +201,24 @@ for n in range(n_trials):  # 3 trials
     })
     np.random.seed(42)
 
-    nest.total_num_virtual_procs=3
-
-    # ==================== Parâmetros ====================
-
-    T_sim = 5000.0  # ms
-    dt = 0.1  # ms
-    neuron_params = {
-        "C_m": 200.0,
-        "g_L": 10.0,
-        "E_L": -60.0,
-        "V_th": -50.0,
-        "V_reset": -60.0,
-        "t_ref": 5.0,
-        "E_ex": 0.0,
-        "E_in": -80.0
-    }
-
-    tau_exc = 5.0
-    tau_inh = 10.0
-    n_groups = 8
-    N_exc_per_group = 100
-    N_inh_per_group = 25
-    delay = 1.5
+    #nest.total_num_virtual_procs=3
 
 
     # ==================== Construção da Rede ====================
     post = fn.post_neuron("iaf_cond_alpha", tau_exc, tau_inh, n=1, neuron_params=neuron_params)
-    tau_stdp = 20.0
-    inh_syn_params = {
-        "synapse_model": "vogels_sprekeler_synapse",
-        "weight": -0.1,      # Inicialmente fraco (Before)
-        "delay": delay,
-        "eta": 0.001,       
-        "alpha": 0.2,
-        "tau": tau_stdp,
-        "Wmax": -100.0,
-    }
+    
+    exc_parrots_list, inh_parrots_list, time, rates, spike_parrots_list = fn.connections(post=post,
+                                    w_exc_by_group=w_exc_by_group, inh_syn_params=inh_syn_params, T_total=T_sim)
+    
+    # ==================== Configuração dos Medidores ====================
+    multimeter = nest.Create("multimeter", params={
+       "record_from": ["V_m", "g_ex", "g_in"],
+      "interval": 0.1  # High temporal resolution
+    })
+    nest.Connect(multimeter, post)
 
-    # Pesos excitatórios fixos (Tuning Curve Inicial)
-    preferred_group = 4 
-    w_exc_by_group = fn.exc_weights(n_groups, preferred_group)
-
-    exc_parrots_list, inh_parrots_list, time, rates, spike_parrots_list, multimeter, spikedetector = fn.connections(post, n_groups, N_exc_per_group, 
-                                    N_inh_per_group, w_exc_by_group, inh_syn_params, delay, T_sim, dt)
+    spikedetector = nest.Create("spike_recorder")   
+    nest.Connect(post, spikedetector)
     
     # ==================== Simulação ====================
 
@@ -285,10 +234,11 @@ for n in range(n_trials):  # 3 trials
         all_input_signals[g, n] = spike_times_trial
         
 
-
+#%%
 # Análise Pós-Simulação
 
 r_t = fn.get_psth(output_all_trials, n_trials, T_sim, bin_size=5.0)
+print("PSTH of output neuron calculated.")
 
 for g in range(n_groups):
 
@@ -299,6 +249,11 @@ for g in range(n_groups):
 
     correlation = fn.calculate_input_output_correlation(r_t, signal_k, bin_size_ms=5.0, dt_signal=0.1)
     correlation_results.append(correlation)
+
+print("Input-output correlations calculated: ", correlation_results)
+
+# Plotting Input Signals and Weights
+print("Plotting Input Signals and Weights...")
 
 y_pos = np.arange(1, n_groups + 1)
 # Plot Raster plot of the fire rate of the input signals
@@ -343,9 +298,5 @@ ax_weights.invert_yaxis() # Match the image order (1 at top)
 plt.tight_layout()
 plt.show()
 
-
-
-
-
-
+print("Plotting of Input Signals and Weights completed.")
 # %%
