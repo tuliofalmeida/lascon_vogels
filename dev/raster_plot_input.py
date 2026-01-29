@@ -4,9 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import functions_nest as fn
 import matplotlib.gridspec as gridspec
-
 import os
-import matplotlib.pyplot as plt
 
 folder = 'fig'
 if not os.path.exists(folder):
@@ -87,7 +85,7 @@ for n in range(n_trials):  # 3 trials
     })
     np.random.seed(42)
 
-    #nest.total_num_virtual_procs=3
+    nest.total_num_virtual_procs=3
 
 
     # ==================== Construção da Rede ====================

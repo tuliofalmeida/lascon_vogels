@@ -120,27 +120,41 @@ t_end = (T_total - T_avg, T_total)
 intervals = [t_begin, t_mid, t_end]
 
 
-# Plot Synaptic Currents in Different Time Intervals
 
-fig, axs = plt.subplots(3, 1, figsize=(10, 10), sharey=True)
+#%%
+# ==================== Varredura de Taxas Alvo (Figura 1G) ====================
 
-for ax, (begin, end) in zip(axs, intervals):
-    ax.axhline(0, color='black', linestyle='-', linewidth=2, alpha=0.7)
-    ax.plot(t, I_E/1000, color="black", label="Excitatory")
-    ax.plot(t, I_I/1000, color="gray", label="Inhibitory")
-    ax.plot(t, I_net/1000, color="green", label="Net")
-    ax.plot(t_sp, [-40]*len(t_sp), "k|", label="Spikes")
+target_rates = [5, 10, 20, 30, 40, 50] # Hz (rho_0)
+measured_rates = []
+T_sim = 15000.0  # ms
 
-    ax.set_xlim(begin, end)
-    #ax.set_ylim(-20.0,20.0)
-    ax.set_ylabel("Synaptic current (nA)")
-    ax.legend(frameon=False, loc="upper right")
+print("Iniciando varredura de taxas alvo (Figura 1G)...")
+print(f"{'Alvo (Hz)':<10} | {'Medido (Hz)':<10}")
+print("-" * 25)
 
-axs[-1].set_xlabel("Time (ms)")
+for rho in target_rates:
+    rate = fn.run_simulation_for_target(rho)
+    measured_rates.append(rate)
+    print(f"{rho:<10.1f} | {rate:<10.1f}")
 
+    plt.figure(figsize=(6, 6))
+
+# Linha de identidade (Target ideal)
+plt.plot([0, 60], [0, 60], 'k--', label="Identity (Ideal)", alpha=0.5)
+
+# Dados simulados
+plt.plot(target_rates, measured_rates, 'ko-', markersize=8, label="Simulation", linewidth=1.5)
+
+plt.xlabel(r"Target Rate $\rho_0$ (Hz)")
+plt.ylabel("Output Firing Rate (Hz)")
+plt.title("Figure 1G Reproduction: Target vs Output Rate")
+plt.legend(frameon=False)
+plt.grid(True, linestyle=':', alpha=0.6)
+plt.axis([0, 60, 0, 60])
 plt.tight_layout()
 plt.show()
+plt.savefig(os.path.join(folder, 'figure_1G_target_vs_output_rate.png'), dpi=300)
 
-print("Plotting of Synaptic Currents completed.")
 
-plt.savefig(os.path.join(folder, 'synaptic_currents_over_time.png'), dpi=300)
+print("Varredura de taxas alvo concluída.")
+#=================================================================================
