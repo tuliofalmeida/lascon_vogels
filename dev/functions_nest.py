@@ -6,6 +6,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import numpy as np
 import time
+import matplotlib.gridspec as gridspec
+# ==================== Parâmetros Globais ====================
 nest.ResetKernel()
 resolution = 0.1
 nest.SetKernelStatus({
@@ -210,6 +212,7 @@ def run_simulation_for_target(target_rate_hz, tau_stdp=20.0, N_inh_per_group=25,
     spikedetector = nest.Create("spike_recorder")
     nest.Connect(post, spikedetector)
     
+
     # ==================== Simulação ====================
     nest.Simulate(T_sim)
     
@@ -221,8 +224,20 @@ def run_simulation_for_target(target_rate_hz, tau_stdp=20.0, N_inh_per_group=25,
     t_start_measure = T_sim - 5000.0
     count = np.sum(times > t_start_measure)
     rate_measured = count / 5.0 # dividido por 5 segundos
+
+    inputs = []
+
+    # Calcular taxa de entrada média
+    for g in range(n_groups):
+        input = nest.GetStatus(spike_parrots_list[g], "events")[0]
+        parrot_spike_times = input["times"]
+        count = np.sum(parrot_spike_times > t_start_measure)
+        rate_g = count / 5.0 # dividido por 5 segundos
+        inputs.append(rate_g)
     
-    return rate_measured
+    rate_input = np.mean(inputs)
+    
+    return rate_measured, rate_input
 
 
 def get_psth(all_spike_times, n_trials, t_sim, bin_size_ms=5.0):
@@ -295,88 +310,5 @@ def calculate_input_output_correlation(r_t, signal_k, bin_size_ms, dt_signal):
     return correlation
 
 
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
 
-def plot_input_raster_and_weights(signals, weights_list, dt_sim=0.1, bin_size_ms=5.0):
-    """
-    Plota o raster (heatmap) dos sinais de entrada e os pesos correspondentes.
-    
-    Args:
-        signals (np.array): Array 3D [n_canais, n_trials, n_steps]
-        weights_list (list/array): Lista de pesos excitatórios por canal.
-        dt_sim (float): Passo de tempo da simulação original (ex: 0.1 ms).
-        bin_size_ms (float): Tamanho do bin desejado para o plot (ex: 5.0 ms).
-    """
-    
-    # 1. Preparação dos Dados (Binagem)
-    # Selecionamos a Trial 0 (pois o sinal de entrada s_k(t) é o mesmo padrão repetido)
-    # Shape alvo: [n_canais, n_steps]
-    raw_signal = signals[:, 0, :] 
-    
-    n_channels, n_steps_total = raw_signal.shape
-    
-    # Calcular fator de redução (ex: 5ms / 0.1ms = 50 steps)
-    factor = int(bin_size_ms / dt_sim)
-    
-    # Arredondar o tamanho do array para ser divisível pelo fator
-    limit = (n_steps_total // factor) * factor
-    raw_signal_trimmed = raw_signal[:, :limit]
-    
-    # Reshape e média para fazer o downsampling (Binagem)
-    # Transforma [Canais, Tempo] -> [Canais, Novos_Bins, Fator] -> Média no eixo do Fator
-    signal_binned = raw_signal_trimmed.reshape(n_channels, -1, factor).mean(axis=2)
-    
-    # Eixo de tempo para o plot
-    n_bins = signal_binned.shape[1]
-    t_max = n_bins * bin_size_ms
-    
-    # 2. Configuração do Plot (GridSpec)
-    fig = plt.figure(figsize=(14, 6))
-    # width_ratios=[4, 1] faz o raster ser 4x mais largo que o gráfico de pesos
-    gs = gridspec.GridSpec(1, 2, width_ratios=[4, 1], wspace=0.05)
-    
-    # --- PAINEL ESQUERDO: Raster (Heatmap) ---
-    ax_raster = plt.subplot(gs[0])
-    
-    # imshow plota a matriz como cores
-    # aspect='auto' é vital para gráficos de tempo longo
-    # origin='upper' coloca o canal 0 no topo
-    im = ax_raster.imshow(signal_binned, 
-                          aspect='auto', 
-                          cmap='inferno', # 'inferno', 'hot', ou 'viridis' funcionam bem
-                          interpolation='nearest',
-                          extent=[0, t_max, n_channels - 0.5, -0.5]) # Ajuste fino para alinhar ticks
-    
-    ax_raster.set_xlabel("Time (ms)")
-    ax_raster.set_ylabel("Input Channel #")
-    ax_raster.set_title(f"Input Firing Rates (Bin = {bin_size_ms}ms)")
-    
-    # Ajustar Ticks do Y para mostrar número dos canais inteiros
-    ax_raster.set_yticks(np.arange(n_channels))
-    ax_raster.invert_yaxis() # Garante que Canal 0 fique no topo (opcional, padrão de matriz)
-    
-    # Barra de cores
-    cbar = plt.colorbar(im, ax=ax_raster, pad=0.02)
-    cbar.set_label("Rate (Hz)")
-    
-    # --- PAINEL DIREITO: Pesos Excitatórios ---
-    ax_weights = plt.subplot(gs[1], sharey=ax_raster)
-    
-    y_pos = np.arange(n_channels)
-    
-    # Plota barras horizontais
-    # A cor 'k' (preto) com alpha ajuda a visualizar
-    ax_weights.barh(y_pos, weights_list, color='black', alpha=0.7, height=0.6)
-    
-    ax_weights.set_xlabel("Excitatory Weight (nS)")
-    ax_weights.set_title("Weights Profile")
-    ax_weights.grid(True, axis='x', linestyle='--', alpha=0.5)
-    
-    # Esconde os labels Y do gráfico da direita (pois já estão na esquerda)
-    plt.setp(ax_weights.get_yticklabels(), visible=False)
-    
-    plt.tight_layout()
-    plt.show()
 

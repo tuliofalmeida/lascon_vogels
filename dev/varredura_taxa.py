@@ -126,6 +126,7 @@ intervals = [t_begin, t_mid, t_end]
 
 target_rates = [5, 10, 20, 30, 40, 50] # Hz (rho_0)
 measured_rates = []
+input_rates = []
 T_sim = 15000.0  # ms
 
 print("Iniciando varredura de taxas alvo (Figura 1G)...")
@@ -133,28 +134,47 @@ print(f"{'Alvo (Hz)':<10} | {'Medido (Hz)':<10}")
 print("-" * 25)
 
 for rho in target_rates:
-    rate = fn.run_simulation_for_target(rho)
+    rate, rate_input = fn.run_simulation_for_target(rho)
     measured_rates.append(rate)
+    input_rates.append(rate_input)
     print(f"{rho:<10.1f} | {rate:<10.1f}")
-
-    plt.figure(figsize=(6, 6))
+#%%
+print(input_rates)
+print(measured_rates)
+plt.figure(figsize=(6, 6))
 
 # Linha de identidade (Target ideal)
-plt.plot([0, 60], [0, 60], 'k--', label="Identity (Ideal)", alpha=0.5)
+#plt.plot([0, 60], [0, 60], 'k--', label="Identity (Ideal)", alpha=0.5)
 
 # Dados simulados
-plt.plot(target_rates, measured_rates, 'ko-', markersize=8, label="Simulation", linewidth=1.5)
+#plt.plot(target_rates, measured_rates, 'ko-', markersize=8, label="Simulation", linewidth=1.5)
 
-plt.xlabel(r"Target Rate $\rho_0$ (Hz)")
+#plt.xlabel(r"Target Rate $\rho_0$ (Hz)")
+#plt.ylabel("Output Firing Rate (Hz)")
+#plt.title("Figure 1G Reproduction: Target vs Output Rate")
+#plt.legend(frameon=False)
+#plt.grid(True, linestyle=':', alpha=0.6)
+#plt.axis([0, 60, 0, 60])
+#plt.tight_layout()
+#plt.show()
+#plt.savefig(os.path.join(folder, 'figure_1G_target_vs_output_rate.png'), dpi=300)
+#%%
+
+#plt.figure(figsize=(6, 6))
+
+# Dados simulados
+plt.plot(input_rates, measured_rates, 'ko-', markersize=8, label="Simulation", linewidth=1.5)
+
+plt.xlabel(r"Input Rate (Hz)")
 plt.ylabel("Output Firing Rate (Hz)")
-plt.title("Figure 1G Reproduction: Target vs Output Rate")
+plt.title("Figure 1G Reproduction: Input vs Output Rate")
 plt.legend(frameon=False)
 plt.grid(True, linestyle=':', alpha=0.6)
-plt.axis([0, 60, 0, 60])
+#plt.axis([0, 60, 0, 60])
+plt.axhline(y=5, color='r', linestyle='--', linewidth=2, label='Prediction')
 plt.tight_layout()
 plt.show()
-plt.savefig(os.path.join(folder, 'figure_1G_target_vs_output_rate.png'), dpi=300)
-
+plt.savefig(os.path.join(folder, 'figure_1G_input_vs_output_rate.png'), dpi=300)
 
 print("Varredura de taxas alvo concluída.")
 #=================================================================================

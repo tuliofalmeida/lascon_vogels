@@ -52,7 +52,7 @@ output_all_trials = [] # Output spike times all trials
 n_trials = 4  # Number of trials
 all_input_signals = np.empty((n_groups, n_trials), dtype=object)  # Input signals all trials
 correlation_results = []
-s_k = np.empty((n_groups, n_trials), dtype=object)  # Input signals PSTH
+s_k = [] # Input signals PSTH
 
 #%%
 # ==================== Construção da Rede ====================
@@ -130,16 +130,19 @@ for g in range(n_groups):
 
     all_spikes_flat = np.concatenate(g_trials)    
     signals_k = fn.get_psth(all_spikes_flat, n_trials, T_sim, bin_size_ms=5.0)
-    s_k[g, n] = signals_k
-
+    s_k.append(signals_k)
+    
+    
     signal_k = all_input_signals[g,0]
 
     correlation = fn.calculate_input_output_correlation(r_t, signal_k, bin_size_ms=5.0, dt_signal=0.1)
     correlation_results.append(correlation)
+
+print(s_k)
+print(all_input_signals)
 
 print("Input-output correlations calculated: ", correlation_results)
 
 # Plotting Input Signals and Weights
 print("Plotting Input Signals and Weights...")
 
-fn.plot_input_raster_and_weights(signals =  all_input_signals, weights_list=w_exc_by_group, dt_sim=0.1, bin_size_ms=5.0)

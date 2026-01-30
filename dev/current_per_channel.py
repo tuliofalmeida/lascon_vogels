@@ -28,7 +28,7 @@ np.random.seed(42)
 
 # ==================== Parâmetros ====================
 T_avg = 4000.0  # ms
-T_total = 60000.0  # 20 segundos
+T_total = 120000.0  # 20 segundos
 dt = 0.1  # ms
 
 neuron_params = {
@@ -129,7 +129,7 @@ fig.legend(loc='upper right', bbox_to_anchor=(0.9, 0.95))
 
 plt.tight_layout()
 plt.show()
-plt.savefig(os.path.join(folder, 'figure_1E_current_per_chan.png'), dpi=300)
+plt.savefig('figure_1E_current_per_chan.png', dpi=300)
 
 
 print("Plotting completed.")
